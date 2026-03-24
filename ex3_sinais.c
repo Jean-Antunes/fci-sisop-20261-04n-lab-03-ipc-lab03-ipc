@@ -30,9 +30,16 @@ static volatile sig_atomic_t sinal_recebido = 0;
 
 // TODO 1: Implemente o handler para SIGUSR1 (usado pelo filho).
 //         Ele deve apenas setar sinal_recebido = 1.
+void handler_sigusr1(int sig) {
+    sinal_recebido = 1;
+}   
 
 // TODO 2: Implemente o handler para SIGUSR2 (usado pelo pai).
 //         Ele deve apenas setar sinal_recebido = 1.
+void handler_sigusr2(int sig) {
+    sinal_recebido = 1;
+}
+
 
 int main(void) {
     pid_t pid = fork();
@@ -47,6 +54,10 @@ int main(void) {
         // TODO 3: Registre o handler de SIGUSR2 com sigaction().
         //         Inicialize a struct com memset, preencha sa_handler,
         //         e chame sigaction().
+            struct sigaction sa;
+            memset(&sa, 0, sizeof(sa));
+            sa.sa_handler = handler_sigusr2;
+            sigaction(SIGUSR2, &sa, NULL);
 
         /* Pequena espera para o filho configurar seu handler */
         usleep(100000);
@@ -55,10 +66,15 @@ int main(void) {
             printf("[pai]  SIGUSR1 -> filho (rodada %d)\n", i);
 
             // TODO 4: Envie SIGUSR1 para o filho com kill().
+            kill(pid, SIGUSR1);
 
             // TODO 5: Espere receber SIGUSR2 do filho.
             //         Use um loop: enquanto sinal_recebido == 0, chame pause().
             //         Depois resete sinal_recebido para 0.
+            while (sinal_recebido == 0) {
+                pause();
+            }
+            sinal_recebido = 0;
 
             printf("[pai]  SIGUSR2 recebido (rodada %d)\n", i);
         }
@@ -68,15 +84,25 @@ int main(void) {
         /* --- PROCESSO FILHO --- */
 
         // TODO 6: Registre o handler de SIGUSR1 com sigaction().
+            struct sigaction sa;
+            memset(&sa, 0, sizeof(sa));
+            sa.sa_handler = handler_sigusr1;
+            sigaction(SIGUSR1, &sa, NULL);
 
         for (int i = 1; i <= NUM_RODADAS; i++) {
             // TODO 7: Espere receber SIGUSR1 do pai.
             //         Mesmo padrão: loop com pause() + flag.
+            while (sinal_recebido == 0) {
+                pause();
+            }
 
             printf("[filho] SIGUSR1 recebido, respondendo SIGUSR2 (rodada %d)\n", i);
 
             // TODO 8: Envie SIGUSR2 para o pai com kill().
             //         Use getppid() para obter o PID do pai.
+            kill(getppid(), SIGUSR2);
+            sinal_recebido = 0;
+
         }
     }
 

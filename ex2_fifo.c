@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 
 /*
  * Ex 2 — FIFO: chat entre processos independentes
@@ -27,34 +28,58 @@ void modo_receber(void) {
     // TODO 1: Crie o FIFO com mkfifo().
     //         Se já existir (errno == EEXIST), tudo bem — continue.
     //         Para qualquer outro erro, imprima com perror() e saia.
-
+        if (mkfifo(FIFO_PATH, 0666) == -1) {
+            if (errno != EEXIST) {
+                perror("mkfifo");
+                return;
+            }
+        }
     printf("[receber] aguardando mensagem...\n");
 
     // TODO 2: Abra o FIFO para leitura com open().
     //         Isso vai bloquear até que alguém abra o outro lado para escrita.
-    int fd = -1; // substitua
+
+    int fd = open(FIFO_PATH, O_RDONLY);
+    if (fd == -1) {
+        perror("open");
+        return;
+    }
+
 
     char buffer[BUF_SIZE];
 
     // TODO 3: Leia a mensagem do FIFO.
-    ssize_t n = 0; // substitua
+    ssize_t n = read(fd, buffer, BUF_SIZE - 1);
+    if (n == -1) {
+        perror("read");
+        close(fd);
+        return;
+    }
     buffer[n] = '\0';
 
     printf("[receber] recebido: %s\n", buffer);
 
     // TODO 4: Feche o descritor e remova o FIFO com unlink().
+    close(fd);
+    unlink(FIFO_PATH);
 }
 
 void modo_enviar(const char *msg) {
     // TODO 5: Abra o FIFO para escrita com open().
     //         Isso vai bloquear até que o receptor abra o outro lado.
-    int fd = -1; // substitua
+    int fd = open(FIFO_PATH, O_WRONLY);
+    if (fd == -1) {
+        perror("open");
+        return;
+    }
 
     // TODO 6: Escreva a mensagem no FIFO.
+    write(fd, msg, strlen(msg));    
 
     printf("[enviar] enviado: %s\n", msg);
 
     // TODO 7: Feche o descritor.
+    close(fd);
 }
 
 int main(int argc, char *argv[]) {
